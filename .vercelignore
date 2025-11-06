@@ -1,0 +1,83 @@
+# Exclude unnecessary files from Vercel deployment
+
+# Development files
+*.md
+README.md
+*.txt
+!requirements.txt
+
+# Test files
+tests/
+test/
+*_test.py
+*_tests.py
+*.test.py
+
+# Documentation
+docs/
+*.rst
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+
+# Virtual environments (shouldn't be in deployment anyway)
+venv/
+env/
+.venv/
+ENV/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files (should use Vercel env vars)
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Large data files
+*.docx
+*.doc
+*.pdf
+*.txt
+!requirements.txt
+
+# Git
+.git/
+.gitignore
+
+# Python cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
