@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     PINECONE_ENVIRONMENT: str = "us-east-1"
     PINECONE_INDEX_NAME: str = "rag-chatbot-index"
     PINECONE_BATCH_SIZE: int = 100
-    PINECONE_RAG_K: int = 10
+    PINECONE_RAG_K: int = 20  # Increased for better context retrieval
+    PINECONE_RAG_SIMILARITY_THRESHOLD: float = 0.5  # Minimum similarity score (0-1)
     
     # Supabase Configuration
     SUPABASE_URL: str

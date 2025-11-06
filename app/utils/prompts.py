@@ -7,15 +7,16 @@ Your tone is bold, witty, and unapologetically direct. You refer to the user as 
 
 You should help users understand market dynamics, dissect earnings, highlight risks, and explore trading setups. You encourage education, not dependency. You're here to make users smarter and more market-aware, not to hand out guaranteed gains.
 
-CRITICAL RAG USAGE RULES:
-- When you receive document information in the context, you MUST use it to answer questions naturally
-- Integrate the information seamlessly into your response - write as if it's part of your knowledge base
-- NEVER mention "Source 1", "Source 2", or any source numbers - use the information naturally
-- If the documents contain relevant information, incorporate it naturally into your answer without referencing sources
-- If the documents don't contain the requested information, say so clearly without mentioning sources
-- NEVER make up information that isn't in the documents
-- Prioritize document information over general knowledge when answering questions
-- Use direct quotes and specific details when helpful, but present them naturally as your own knowledge
+⚠️ CRITICAL RAG PRIORITY RULES - HIGHEST PRIORITY ⚠️:
+- **ABSOLUTE PRIORITY**: When document information is provided in the context, you MUST prioritize it over ALL general knowledge
+- **MANDATORY USAGE**: If the documents contain information relevant to the question, you MUST use that information as the PRIMARY basis for your answer
+- **NO GENERAL KNOWLEDGE**: Do NOT use general market knowledge if the documents provide specific information - the documents are your PRIMARY and PREFERRED source
+- **SPECIFIC REFERENCES**: When documents mention specific chapters, sections, indicators, strategies, or opinions, you MUST reference those specific details
+- **NATURAL INTEGRATION**: Integrate document information seamlessly - write as if it's your own knowledge from the book/document, not as a citation
+- **NO SOURCE MENTIONS**: NEVER mention "Source 1", "Source 2", "according to the document", or any source references - use the information naturally as your own knowledge
+- **DIRECT QUOTES**: When helpful, use direct quotes and specific details from the documents, but present them naturally as your own insights
+- **IF NOT IN DOCUMENTS**: Only if the documents genuinely don't contain the requested information, you may use general knowledge, but FIRST confirm the documents don't have it
+- **EXAMPLES**: If asked about "favorite technical indicators" and the document has a chapter on this, you MUST reference that specific chapter and the indicators mentioned there, NOT general knowledge about technical indicators
 
 CRITICAL DATA COLLECTION RULES:
 - You MUST proactively ask for the user's name, email, and income level naturally during the conversation
@@ -82,37 +83,72 @@ Return ONLY valid JSON in this format (no markdown, no code blocks):
 
 
 def get_query_generation_prompt(message: str) -> str:
-    """Generate prompt for AI-based query generation"""
-    return f"""Analyze the following user question and generate 3-5 different search queries that would help find relevant information in a document database.
+    """Generate prompt for AI-based query generation focused on document content"""
+    return f"""Analyze the following user question and generate 3-5 different search queries that would help find relevant information in uploaded documents (books, guides, etc.).
 
 User question: "{message}"
 
 Generate search queries that:
-1. Extract key entities, concepts, and topics
-2. Include synonyms and related terms
-3. Use different phrasings and perspectives
-4. Focus on the core information need
+1. Extract key entities, concepts, and topics from the question
+2. Include synonyms and related terms that might appear in documents
+3. Use different phrasings and perspectives that match how content might be written in documents
+4. Focus on finding SPECIFIC information from documents (chapters, sections, specific mentions)
+5. Include variations that might match document terminology
+
+IMPORTANT: Generate queries that would match how information is written in books/documents, not just general web search terms.
 
 Return ONLY a JSON array of search query strings, no explanations:
 ["query1", "query2", "query3", ...]
 
 Examples:
-- If asked about "Apple stock performance", generate: ["Apple", "Apple Computer", "Apple stock", "AAPL performance", "Apple financial results"]
-- If asked about "cash flow analysis", generate: ["cash flow", "cash flow analysis", "financial cash flow", "operating cash flow", "free cash flow"]
-- If asked about "market trends", generate: ["market trends", "stock market trends", "financial market analysis", "market outlook", "trading trends"]
+- If asked "what are your favorite technical indicators?", generate: ["favorite technical indicators", "technical indicators", "preferred indicators", "best indicators", "indicator preferences"]
+- If asked about "Apple stock performance", generate: ["Apple stock", "Apple Computer", "AAPL", "Apple performance", "Apple financial results"]
+- If asked about "cash flow analysis", generate: ["cash flow", "cash flow analysis", "analyzing cash flow", "cash flow methods", "cash flow strategies"]
+- If asked about "market trends", generate: ["market trends", "trend analysis", "market direction", "trending markets", "market outlook"]
 """
 
 
 def build_rag_context(documents: list) -> str:
-    """Build RAG context from retrieved documents"""
+    """Build RAG context from retrieved documents with strong prioritization"""
     if not documents:
         return ""
     
     context_parts = []
-    for doc in documents[:5]:  # Use top 5 results
+    for idx, doc in enumerate(documents, 1):
         content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
-        context_parts.append(content)
+        # Add metadata if available for better context
+        metadata_info = ""
+        if hasattr(doc, 'metadata') and doc.metadata:
+            metadata = doc.metadata
+            if metadata.get('filename'):
+                metadata_info = f"\n[From: {metadata.get('filename')}]"
+            if metadata.get('chunk_index') is not None:
+                metadata_info += f" [Chunk {metadata.get('chunk_index') + 1}]"
+        context_parts.append(f"{content}{metadata_info}")
     
-    context = "\n\n--- RELEVANT DOCUMENT INFORMATION ---\n" + "\n\n".join(context_parts) + "\n\n--- END OF DOCUMENT INFORMATION ---\n\nIMPORTANT: Use the information from the documents above to answer the user's question naturally. Integrate the information seamlessly into your response without mentioning 'Source 1', 'Source 2', or similar references. Write as if the information is part of your knowledge base. If the documents contain relevant information, incorporate it naturally into your answer. If the documents don't contain the requested information, say so clearly without referencing sources."
+    # Use all retrieved documents (up to 20) for comprehensive context
+    context = """\n\n═══════════════════════════════════════════════════════════════
+🎯 PRIMARY KNOWLEDGE BASE - USE THIS INFORMATION FIRST 🎯
+═══════════════════════════════════════════════════════════════
+
+The following information comes from uploaded documents (books, guides, etc.) that contain SPECIFIC knowledge you should use to answer questions.
+
+⚠️ CRITICAL INSTRUCTIONS:
+1. **PRIORITY**: This document information has ABSOLUTE PRIORITY over general knowledge
+2. **MANDATORY**: If this information is relevant to the user's question, you MUST use it as the PRIMARY basis for your answer
+3. **NO GENERAL KNOWLEDGE**: Do NOT fall back to general knowledge if this document contains relevant information
+4. **SPECIFIC DETAILS**: Reference specific chapters, sections, indicators, strategies, or opinions mentioned in these documents
+5. **NATURAL INTEGRATION**: Write as if this information is your own knowledge from the book/document
+6. **NO CITATIONS**: Never mention "according to the document" or cite sources - use it naturally as your own insights
+7. **DIRECT QUOTES**: When helpful, use specific details, quotes, or examples from these documents
+
+DOCUMENT CONTENT:
+""" + "\n\n---\n\n".join(context_parts) + """
+
+═══════════════════════════════════════════════════════════════
+END OF PRIMARY KNOWLEDGE BASE
+═══════════════════════════════════════════════════════════════
+
+REMEMBER: Answer the user's question using the document information above as your PRIMARY source. Only use general knowledge if the documents genuinely don't contain the requested information.\n\n"""
     return context
 

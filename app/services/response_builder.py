@@ -14,17 +14,18 @@ class ResponseBuilder:
         user_data: Optional[Dict[str, Any]] = None,
         rag_context: Optional[str] = None
     ) -> List[Dict[str, str]]:
-        """Build complete message list for OpenAI API"""
+        """Build complete message list for OpenAI API with RAG context prioritized"""
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        
+        # Add RAG context immediately after system prompt for maximum priority
+        # This ensures the model sees the document information first
+        if rag_context:
+            messages.append({"role": "system", "content": rag_context})
         
         # Add user data context
         user_context = self._build_user_context(user_data)
         if user_context:
             messages.append({"role": "system", "content": user_context})
-        
-        # Add RAG context if available
-        if rag_context:
-            messages.insert(-1, {"role": "system", "content": rag_context})
         
         # Add conversation history
         for hist in conversation_history[-settings.CHAT_HISTORY_LIMIT:]:

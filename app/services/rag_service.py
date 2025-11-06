@@ -22,13 +22,27 @@ class RAGService:
         """Initialize retriever once and cache it"""
         try:
             if self.vector_store:
+                # Use similarity search with score_threshold for better filtering
                 self.retriever = self.vector_store.as_retriever(
-                    search_kwargs={"k": settings.PINECONE_RAG_K}
+                    search_kwargs={
+                        "k": settings.PINECONE_RAG_K,
+                        "score_threshold": settings.PINECONE_RAG_SIMILARITY_THRESHOLD
+                    }
                 )
             else:
                 self.retriever = None
         except Exception as e:
-            self.retriever = None
+            logger.warning(f"Retriever initialization warning: {e}")
+            # Fallback without score_threshold if not supported
+            try:
+                if self.vector_store:
+                    self.retriever = self.vector_store.as_retriever(
+                        search_kwargs={"k": settings.PINECONE_RAG_K}
+                    )
+                else:
+                    self.retriever = None
+            except Exception as e2:
+                self.retriever = None
     
     def generate_search_queries(self, message: str) -> List[str]:
         """Generate multiple search queries using AI"""
@@ -79,17 +93,50 @@ class RAGService:
             return [message]
     
     def search_documents(self, query: str) -> List[Any]:
-        """Search for documents using a single query"""
+        """Search for documents using a single query with similarity filtering"""
         if not self.retriever:
             return []
         
         try:
-            return self.retriever.invoke(query)
+            docs = self.retriever.invoke(query)
+            # Filter by similarity score if available
+            return self._filter_by_similarity(docs)
         except:
             try:
-                return self.retriever.get_relevant_documents(query)
+                docs = self.retriever.get_relevant_documents(query)
+                return self._filter_by_similarity(docs)
             except Exception as e:
+                logger.warning(f"Document search error: {e}")
                 return []
+    
+    def _filter_by_similarity(self, documents: List[Any]) -> List[Any]:
+        """Filter documents by similarity score threshold"""
+        if not documents:
+            return []
+        
+        filtered_docs = []
+        threshold = settings.PINECONE_RAG_SIMILARITY_THRESHOLD
+        
+        for doc in documents:
+            # Check if document has similarity score in metadata
+            if hasattr(doc, 'metadata') and doc.metadata:
+                score = doc.metadata.get('score') or doc.metadata.get('similarity_score')
+                if score is not None:
+                    # Pinecone returns scores as 0-1, where 1 is most similar
+                    if score >= threshold:
+                        filtered_docs.append(doc)
+                    continue
+            
+            # If no score available, include the document (let vector store handle filtering)
+            # This ensures we don't lose documents when scores aren't available
+            filtered_docs.append(doc)
+        
+        # If we filtered too aggressively, keep at least top results
+        if not filtered_docs and documents:
+            # Return top documents even if below threshold (might be edge case)
+            return documents[:min(10, len(documents))]
+        
+        return filtered_docs
     
     def search_documents_parallel(self, queries: List[str]) -> List[Any]:
         """Search for documents using multiple queries in parallel"""
@@ -120,46 +167,55 @@ class RAGService:
         return relevant_docs
     
     def deduplicate_documents(self, documents: List[Any]) -> List[Any]:
-        """Remove duplicate documents while preserving order"""
+        """Remove duplicate documents while preserving relevance order"""
         if not documents:
             return []
         
         seen_content = set()
         unique_docs = []
+        
         for doc in documents:
             content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
-            content_hash = hash(content[:200])
+            # Use longer hash for better deduplication (first 500 chars)
+            content_hash = hash(content[:500])
             if content_hash not in seen_content:
                 seen_content.add(content_hash)
                 unique_docs.append(doc)
         
+        # Return up to configured K, preserving order (most relevant first)
         return unique_docs[:settings.PINECONE_RAG_K]
     
     def retrieve_context(self, message: str, use_query_generation: bool = True) -> Optional[str]:
-        """Retrieve relevant context from documents for a message"""
+        """Retrieve relevant context from documents for a message with enhanced retrieval"""
         if not self.retriever or not settings.CHAT_RAG_ENABLED:
             return None
         
         try:
-            # Generate search queries
+            # Generate search queries for better retrieval
             if use_query_generation and settings.CHAT_QUERY_GEN_ENABLED:
                 search_queries = self.generate_search_queries(message)
+                # Always include original message as first query
+                if message not in search_queries:
+                    search_queries.insert(0, message)
             else:
                 search_queries = [message]
             
-            # Search documents
+            # Search documents with multiple queries
             relevant_docs = self.search_documents_parallel(search_queries)
             
-            # If no results, try original message
+            # If no results from parallel search, try original message directly
             if not relevant_docs:
                 relevant_docs = self.search_documents(message)
             
-            # Deduplicate
+            # Deduplicate while preserving relevance order
             relevant_docs = self.deduplicate_documents(relevant_docs)
             
-            # Build context
+            # Log retrieval stats for debugging
             if relevant_docs:
+                logger.info(f"Retrieved {len(relevant_docs)} document chunks for query: {message[:50]}...")
                 return build_rag_context(relevant_docs)
+            else:
+                logger.warning(f"No relevant documents found for query: {message[:50]}...")
             
             return None
             
