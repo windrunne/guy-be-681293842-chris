@@ -1,73 +1,99 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# Exclude unnecessary files from Vercel deployment to reduce size
 
-# Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-.next/
-out/
-build/
-dist/
+# Development and documentation
+*.md
+README.md
+*.txt
+!requirements.txt
+docs/
+*.rst
 
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Test files
+tests/
+test/
+*_test.py
+*_tests.py
+*.test.py
+.pytest_cache/
+.coverage
+htmlcov/
 
-# IDE
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
+*.sublime-*
 
-# OS
-.DS_Store
-Thumbs.db
+# Logs
+logs/
+*.log
 
-# Database
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.Python
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+
+# Database files
 *.db
 *.sqlite
 *.sqlite3
-# PostgreSQL (keep local .env for connection strings)
-# *.sql
 
-# Logs
-*.log
-logs/
+# Environment files (use Vercel env vars instead)
+.env
+.env.local
+.env.*.local
 
-# Testing
+# Build artifacts
+build/
+dist/
+*.whl
+
+# Large data files that shouldn't be in deployment
+*.docx
+*.doc
+*.pdf
+!requirements.txt
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Coverage
 .coverage
-.pytest_cache/
-htmlcov/
+.coverage.*
+cover/
 
-# Misc
-*.bak
-*.tmp
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
