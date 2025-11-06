@@ -82,7 +82,8 @@ class RAGService:
                 valid_queries = [q.strip() for q in search_queries if isinstance(q, str) and len(q.strip()) > 2]
                 if not valid_queries:
                     return [message]
-                return valid_queries[:5]
+                # Return up to 7 queries for better semantic coverage
+                return valid_queries[:7]
             else:
                 return [message]
                 
@@ -197,6 +198,7 @@ class RAGService:
                 # Always include original message as first query
                 if message not in search_queries:
                     search_queries.insert(0, message)
+                logger.debug(f"Generated {len(search_queries)} search queries: {search_queries[:3]}...")
             else:
                 search_queries = [message]
             
@@ -205,17 +207,51 @@ class RAGService:
             
             # If no results from parallel search, try original message directly
             if not relevant_docs:
+                logger.debug("No results from parallel search, trying direct search...")
                 relevant_docs = self.search_documents(message)
+            
+            # If still no results, try direct vector store search as fallback
+            if not relevant_docs and self.vector_store:
+                logger.debug("Trying direct vector store search as fallback...")
+                try:
+                    # Use vector store's similarity_search_with_score for better control
+                    results = self.vector_store.similarity_search_with_score(
+                        message,
+                        k=settings.PINECONE_RAG_K * 2  # Get more results for filtering
+                    )
+                    # Filter by score
+                    # For cosine similarity: higher score = more similar (0-1 range)
+                    # For distance: lower score = more similar
+                    relevant_docs = []
+                    for doc, score in results:
+                        # Handle both similarity (higher is better) and distance (lower is better)
+                        # If score > 1, it's likely a distance metric, convert to similarity
+                        if score > 1:
+                            similarity = 1 / (1 + score)  # Convert distance to similarity approximation
+                        else:
+                            similarity = score
+                        
+                        if similarity >= settings.PINECONE_RAG_SIMILARITY_THRESHOLD:
+                            relevant_docs.append(doc)
+                    
+                    if relevant_docs:
+                        logger.info(f"Direct vector search fallback found {len(relevant_docs)} documents")
+                except Exception as e:
+                    logger.warning(f"Direct vector search fallback failed: {e}")
             
             # Deduplicate while preserving relevance order
             relevant_docs = self.deduplicate_documents(relevant_docs)
             
             # Log retrieval stats for debugging
             if relevant_docs:
-                logger.info(f"Retrieved {len(relevant_docs)} document chunks for query: {message[:50]}...")
+                # Log sample of retrieved content for debugging
+                sample_content = ""
+                if relevant_docs and hasattr(relevant_docs[0], 'page_content'):
+                    sample_content = relevant_docs[0].page_content[:200] + "..." if len(relevant_docs[0].page_content) > 200 else relevant_docs[0].page_content
+                logger.info(f"Retrieved {len(relevant_docs)} document chunks for query: '{message[:50]}...' | Sample: {sample_content}")
                 return build_rag_context(relevant_docs)
             else:
-                logger.warning(f"No relevant documents found for query: {message[:50]}...")
+                logger.warning(f"No relevant documents found for query: '{message[:50]}...'")
             
             return None
             

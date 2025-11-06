@@ -7,16 +7,30 @@ Your tone is bold, witty, and unapologetically direct. You refer to the user as 
 
 You should help users understand market dynamics, dissect earnings, highlight risks, and explore trading setups. You encourage education, not dependency. You're here to make users smarter and more market-aware, not to hand out guaranteed gains.
 
-⚠️ CRITICAL RAG PRIORITY RULES - HIGHEST PRIORITY ⚠️:
-- **ABSOLUTE PRIORITY**: When document information is provided in the context, you MUST prioritize it over ALL general knowledge
-- **MANDATORY USAGE**: If the documents contain information relevant to the question, you MUST use that information as the PRIMARY basis for your answer
-- **NO GENERAL KNOWLEDGE**: Do NOT use general market knowledge if the documents provide specific information - the documents are your PRIMARY and PREFERRED source
-- **SPECIFIC REFERENCES**: When documents mention specific chapters, sections, indicators, strategies, or opinions, you MUST reference those specific details
-- **NATURAL INTEGRATION**: Integrate document information seamlessly - write as if it's your own knowledge from the book/document, not as a citation
-- **NO SOURCE MENTIONS**: NEVER mention "Source 1", "Source 2", "according to the document", or any source references - use the information naturally as your own knowledge
-- **DIRECT QUOTES**: When helpful, use direct quotes and specific details from the documents, but present them naturally as your own insights
-- **IF NOT IN DOCUMENTS**: Only if the documents genuinely don't contain the requested information, you may use general knowledge, but FIRST confirm the documents don't have it
-- **EXAMPLES**: If asked about "favorite technical indicators" and the document has a chapter on this, you MUST reference that specific chapter and the indicators mentioned there, NOT general knowledge about technical indicators
+⚠️⚠️⚠️ CRITICAL RAG PRIORITY RULES - ABSOLUTE HIGHEST PRIORITY ⚠️⚠️⚠️:
+
+**YOU ARE FORBIDDEN FROM USING GENERAL KNOWLEDGE IF DOCUMENTS ARE PROVIDED**
+
+1. **MANDATORY DOCUMENT USAGE**: When document information appears in the context below, you MUST use it as the EXCLUSIVE source for your answer. General knowledge is FORBIDDEN.
+
+2. **ZERO TOLERANCE FOR GENERAL KNOWLEDGE**: If documents contain ANY relevant information, you MUST use it. Do NOT supplement with general knowledge. Do NOT provide general market advice. The documents are your ONLY source.
+
+3. **SEMANTIC MATCHING**: Even if the question wording doesn't exactly match the document, if the document contains semantically related information, you MUST use it. For example:
+   - Question: "What is the only good information about the stock?"
+   - Document might say: "insider information", "insiders know better", "insider knowledge"
+   - You MUST use the document's answer, NOT general knowledge about 10Q/10K filings
+
+4. **SPECIFIC DETAILS REQUIRED**: When documents mention specific concepts, opinions, strategies, or information, you MUST reference those exact details. Do NOT paraphrase with general knowledge.
+
+5. **NATURAL INTEGRATION**: Write as if the document information is your own knowledge from the book/document. Never cite sources.
+
+6. **ONLY IF ABSOLUTELY NOT IN DOCUMENTS**: Only if you've thoroughly checked and the documents genuinely contain ZERO relevant information, you may use general knowledge. But FIRST, you must explicitly state that the documents don't contain this information.
+
+7. **EXAMPLES OF FORBIDDEN BEHAVIOR**:
+   - ❌ Question: "What is the only good information about the stock?" → Answering with general 10Q/10K advice when document says "insider information"
+   - ✅ Question: "What is the only good information about the stock?" → Answering with document's specific answer about "insider information" or "insiders know better"
+
+**REMEMBER: Documents override ALL general knowledge. Always check documents first.**
 
 CRITICAL DATA COLLECTION RULES:
 - You MUST proactively ask for the user's name, email, and income level naturally during the conversation
@@ -83,28 +97,33 @@ Return ONLY valid JSON in this format (no markdown, no code blocks):
 
 
 def get_query_generation_prompt(message: str) -> str:
-    """Generate prompt for AI-based query generation focused on document content"""
-    return f"""Analyze the following user question and generate 3-5 different search queries that would help find relevant information in uploaded documents (books, guides, etc.).
+    """Generate prompt for AI-based query generation focused on document content with semantic expansion"""
+    return f"""Analyze the following user question and generate 5-7 different search queries that would help find relevant information in uploaded documents (books, guides, etc.).
 
 User question: "{message}"
 
 Generate search queries that:
 1. Extract key entities, concepts, and topics from the question
-2. Include synonyms and related terms that might appear in documents
+2. Include synonyms, related terms, and semantic variations that might appear in documents
 3. Use different phrasings and perspectives that match how content might be written in documents
-4. Focus on finding SPECIFIC information from documents (chapters, sections, specific mentions)
-5. Include variations that might match document terminology
+4. Focus on finding SPECIFIC information from documents (chapters, sections, specific mentions, opinions, strategies)
+5. Include semantic variations - if question asks about "good information", also search for "best information", "valuable information", "useful information", "insider information", "insider knowledge"
+6. Include conceptual variations - if question asks about "only good information", also search for what the document says is the "best" or "most valuable" information
+7. Include variations that might match document terminology and phrasing
 
-IMPORTANT: Generate queries that would match how information is written in books/documents, not just general web search terms.
+CRITICAL: Generate queries that capture the SEMANTIC MEANING of the question, not just literal keywords. For example:
+- "What is the only good information about the stock?" should generate queries like: ["good information about stock", "best information about stock", "valuable stock information", "insider information", "insider knowledge about stock", "what insiders know", "insiders know better"]
+
+IMPORTANT: Generate queries that would match how information is written in books/documents, including semantic and conceptual variations.
 
 Return ONLY a JSON array of search query strings, no explanations:
 ["query1", "query2", "query3", ...]
 
 Examples:
-- If asked "what are your favorite technical indicators?", generate: ["favorite technical indicators", "technical indicators", "preferred indicators", "best indicators", "indicator preferences"]
-- If asked about "Apple stock performance", generate: ["Apple stock", "Apple Computer", "AAPL", "Apple performance", "Apple financial results"]
-- If asked about "cash flow analysis", generate: ["cash flow", "cash flow analysis", "analyzing cash flow", "cash flow methods", "cash flow strategies"]
-- If asked about "market trends", generate: ["market trends", "trend analysis", "market direction", "trending markets", "market outlook"]
+- If asked "what are your favorite technical indicators?", generate: ["favorite technical indicators", "technical indicators", "preferred indicators", "best indicators", "indicator preferences", "recommended indicators", "top indicators"]
+- If asked "What is the only good information about the stock?", generate: ["good information about stock", "best information about stock", "valuable stock information", "insider information", "insider knowledge", "insiders know better", "what insiders know about stock"]
+- If asked about "Apple stock performance", generate: ["Apple stock", "Apple Computer", "AAPL", "Apple performance", "Apple financial results", "Apple stock analysis"]
+- If asked about "cash flow analysis", generate: ["cash flow", "cash flow analysis", "analyzing cash flow", "cash flow methods", "cash flow strategies", "cash flow evaluation"]
 """
 
 
@@ -126,29 +145,34 @@ def build_rag_context(documents: list) -> str:
                 metadata_info += f" [Chunk {metadata.get('chunk_index') + 1}]"
         context_parts.append(f"{content}{metadata_info}")
     
-    # Use all retrieved documents (up to 20) for comprehensive context
+    # Use all retrieved documents for comprehensive context
     context = """\n\n═══════════════════════════════════════════════════════════════
-🎯 PRIMARY KNOWLEDGE BASE - USE THIS INFORMATION FIRST 🎯
+🎯🎯🎯 EXCLUSIVE KNOWLEDGE BASE - YOUR ONLY SOURCE 🎯🎯🎯
 ═══════════════════════════════════════════════════════════════
 
-The following information comes from uploaded documents (books, guides, etc.) that contain SPECIFIC knowledge you should use to answer questions.
+⚠️⚠️⚠️ CRITICAL: The information below comes from uploaded documents. You MUST use this information to answer the user's question. General knowledge is FORBIDDEN if this information is relevant. ⚠️⚠️⚠️
 
-⚠️ CRITICAL INSTRUCTIONS:
-1. **PRIORITY**: This document information has ABSOLUTE PRIORITY over general knowledge
-2. **MANDATORY**: If this information is relevant to the user's question, you MUST use it as the PRIMARY basis for your answer
-3. **NO GENERAL KNOWLEDGE**: Do NOT fall back to general knowledge if this document contains relevant information
-4. **SPECIFIC DETAILS**: Reference specific chapters, sections, indicators, strategies, or opinions mentioned in these documents
-5. **NATURAL INTEGRATION**: Write as if this information is your own knowledge from the book/document
-6. **NO CITATIONS**: Never mention "according to the document" or cite sources - use it naturally as your own insights
-7. **DIRECT QUOTES**: When helpful, use specific details, quotes, or examples from these documents
+**ABSOLUTE RULES:**
+1. **EXCLUSIVE SOURCE**: This document information is your EXCLUSIVE source. Do NOT use general knowledge.
+2. **SEMANTIC MATCHING**: Even if question wording differs, if documents contain semantically related information, you MUST use it.
+3. **NO GENERAL KNOWLEDGE**: If documents have ANY relevant information, you MUST use it. Do NOT supplement with general market knowledge.
+4. **SPECIFIC DETAILS**: Use exact concepts, opinions, and information from these documents.
+5. **NATURAL WRITING**: Write as if this is your own knowledge from the book/document.
+6. **NO CITATIONS**: Never mention sources - use information naturally.
+
+**EXAMPLE OF CORRECT BEHAVIOR:**
+- User asks: "What is the only good information about the stock?"
+- Document says: "insider information" or "insiders know better than anyone else"
+- ✅ CORRECT: Answer using the document's specific answer about insider information
+- ❌ WRONG: Answering with general 10Q/10K filing advice
 
 DOCUMENT CONTENT:
 """ + "\n\n---\n\n".join(context_parts) + """
 
 ═══════════════════════════════════════════════════════════════
-END OF PRIMARY KNOWLEDGE BASE
+END OF EXCLUSIVE KNOWLEDGE BASE
 ═══════════════════════════════════════════════════════════════
 
-REMEMBER: Answer the user's question using the document information above as your PRIMARY source. Only use general knowledge if the documents genuinely don't contain the requested information.\n\n"""
+**FINAL REMINDER**: Use the document information above as your EXCLUSIVE source. General knowledge is FORBIDDEN if documents contain relevant information. Check documents first, always.\n\n"""
     return context
 
