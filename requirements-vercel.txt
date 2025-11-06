@@ -1,0 +1,51 @@
+# Optimized requirements for Vercel deployment
+# Removed heavy dependencies that may not be needed at runtime
+
+# Core FastAPI
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart==0.0.6
+
+# OpenAI (required)
+openai>=1.54.0
+
+# Langchain (core only, lighter versions)
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-community>=0.3.0
+langchain-pinecone>=0.1.0
+langchain-text-splitters>=0.3.0
+
+# Pinecone
+pinecone-client>=3.0.0
+pinecone>=3.0.0
+
+# Supabase
+supabase>=2.10.0
+
+# Document parsing (lightweight alternatives)
+python-docx==1.1.0
+pypdf==3.17.4
+# Removed pdfplumber (heavy) - using pypdf instead
+# Removed pdf2image (very heavy) - only needed for image extraction
+# Removed pillow (heavy) - only needed for image processing
+
+# Core utilities
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+email-validator>=2.0.0
+python-dotenv==1.0.1
+aiofiles==23.2.1
+tiktoken>=0.8.0
+
+# SendGrid
+sendgrid>=6.11.0
+
+# Removed heavy dependencies:
+# - unstructured (very large, ~200MB+)
+# - PyMuPDF (large, only needed for advanced PDF features)
+# - pdf2image (requires system dependencies)
+# - pillow (large, only needed for image processing)
+# - openpyxl (only needed for Excel files)
+# - pdfplumber (duplicate of pypdf functionality)
+
